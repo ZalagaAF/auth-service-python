@@ -1,12 +1,14 @@
 from collections.abc import Iterator
 
 import pytest
+from fastapi.testclient import TestClient
 from sqlalchemy import Engine, create_engine
 from sqlalchemy.orm import Session
 
 import app.models  # noqa: F401  (registra los modelos en Base.metadata)
 from app.core.config import get_settings
 from app.db.base import Base
+from app.main import app as fastapi_app
 
 
 @pytest.fixture(scope="session")
@@ -39,3 +41,19 @@ def db_session(engine: Engine) -> Iterator[Session]:
         session.close()
         transaction.rollback()
         connection.close()
+
+
+@pytest.fixture
+def client(db_session: Session) -> Iterator[TestClient]:
+    # Import local: mientras get_db no exista, fallan solo los tests que piden
+    # este fixture y no toda la suite de integración.
+    from app.db.session import get_db
+
+    def override_get_db() -> Iterator[Session]:
+        yield db_session
+
+    fastapi_app.dependency_overrides[get_db] = override_get_db
+    try:
+        yield TestClient(fastapi_app)
+    finally:
+        fastapi_app.dependency_overrides.clear()

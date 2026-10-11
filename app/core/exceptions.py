@@ -3,3 +3,6 @@ class UserAlreadyExistsError(Exception):
 
 class InvalidCredentialsError(Exception):
     """Las credenciales son inválidas o la cuenta no puede iniciar sesión."""
+
+class InvalidTokenError(Exception):
+    """El Toker es invalido"""

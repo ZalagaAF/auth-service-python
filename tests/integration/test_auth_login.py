@@ -1,4 +1,5 @@
 import pytest
+from app.core.security import decode_access_token
 
 from app.repositories.user_repository import UserRepository
 
@@ -97,3 +98,21 @@ def test_email_con_formato_invalido_devuelve_422(client):
     response = login(client, email="no-es-un-email")
 
     assert response.status_code == 422
+
+def test_el_token_pertenece_al_usuario_que_inicio_sesion(
+    client, db_session, usuario_registrado
+):
+    response = login(client)
+    user = UserRepository(db_session).get_by_email(EMAIL)
+
+    assert response.status_code == 200
+    claims = decode_access_token(response.json()["access_token"])
+    assert claims["sub"] == str(user.id)
+
+
+def test_cada_login_correcto_devuelve_un_token_valido(client, usuario_registrado):
+    response = login(client)
+
+    assert response.status_code == 200
+    claims = decode_access_token(response.json()["access_token"])
+    assert "exp" in claims

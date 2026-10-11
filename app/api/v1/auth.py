@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.core.dependencies import get_auth_service
 from app.core.exceptions import InvalidCredentialsError, UserAlreadyExistsError
+from app.core.security import create_access_token
 from app.schemas.auth import LoginRequest, TokenResponse
 from app.schemas.user import UserCreate, UserRead
 from app.services.auth_service import AuthService
@@ -39,7 +40,7 @@ def login(
     service: Annotated[AuthService, Depends(get_auth_service)],
 ):
     try:
-        service.authenticate(email=credentials.email, password=credentials.password)
+        user = service.authenticate(email=credentials.email, password=credentials.password)
     except InvalidCredentialsError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -47,4 +48,6 @@ def login(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    raise NotImplementedError
+    token = create_access_token(subject=str(user.id))
+
+    return TokenResponse(access_token=token)

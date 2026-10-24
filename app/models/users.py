@@ -1,10 +1,17 @@
 import uuid
 from datetime import datetime
 
+from typing import TYPE_CHECKING
+
+from app.models.user_roles import user_roles
+
 from sqlalchemy import DateTime, String, func
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
+
+if TYPE_CHECKING:
+    from app.models.roles import Role
 
 
 class User(Base):
@@ -18,3 +25,5 @@ class User(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
+
+    roles: Mapped[list["Role"]] = relationship(secondary=user_roles, back_populates="users")

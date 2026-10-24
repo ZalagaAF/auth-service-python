@@ -6,7 +6,7 @@ from app.repositories.user_repository import UserRepository
 
 URL = "/api/v1/auth/register"
 PASSWORD = "Clave-segura-123"
-
+pytestmark = pytest.mark.usefixtures("base_roles")
 
 def datos_validos(**cambios: str) -> dict[str, str]:
     datos = {"username": "ana", "email": "ana@example.com", "password": PASSWORD}

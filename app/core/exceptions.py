@@ -6,3 +6,11 @@ class InvalidCredentialsError(Exception):
 
 class InvalidTokenError(Exception):
     """El Toker es invalido"""
+
+class DefaultRoleNotFoundError(Exception):
+    """El rol base no existe en la base de datos.
+
+    Es un error de configuración del servidor (falta sembrar los roles),
+    no un error del cliente: por eso no hereda de las excepciones que se
+    traducen a respuestas 4xx.
+    """

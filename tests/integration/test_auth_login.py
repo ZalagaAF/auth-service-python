@@ -7,6 +7,7 @@ REGISTER_URL = "/api/v1/auth/register"
 LOGIN_URL = "/api/v1/auth/login"
 EMAIL = "ana@example.com"
 PASSWORD = "Clave-segura-123"
+pytestmark = pytest.mark.usefixtures("base_roles")
 
 
 @pytest.fixture

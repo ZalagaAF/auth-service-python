@@ -7,8 +7,10 @@ from sqlalchemy.orm import Session
 
 import app.models  # noqa: F401  (registra los modelos en Base.metadata)
 from app.core.config import get_settings
+from app.core.roles import BASE_ROLE_NAMES
 from app.db.base import Base
 from app.main import app as fastapi_app
+from app.models.roles import Role
 
 
 @pytest.fixture(scope="session")
@@ -57,3 +59,12 @@ def client(db_session: Session) -> Iterator[TestClient]:
         yield TestClient(fastapi_app)
     finally:
         fastapi_app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def base_roles(db_session):
+    """Inserta los roles base dentro de la transacción del test (se revierte sola)."""
+    roles = {nombre: Role(name=nombre) for nombre in BASE_ROLE_NAMES}
+    db_session.add_all(roles.values())
+    db_session.flush()
+    return roles

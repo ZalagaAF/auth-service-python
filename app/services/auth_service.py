@@ -1,12 +1,15 @@
+import uuid
+
 from sqlalchemy.exc import IntegrityError
 
 from app.core.exceptions import (
     DefaultRoleNotFoundError,
     InvalidCredentialsError,
+    InvalidTokenError,
     UserAlreadyExistsError,
 )
 from app.core.roles import ROLE_USER
-from app.core.security import hash_password, verify_password
+from app.core.security import decode_access_token, hash_password, verify_password
 from app.models import User
 from app.repositories.role_repository import RoleRepository
 from app.repositories.user_repository import UserRepository
@@ -54,5 +57,25 @@ class AuthService:
 
         if user is None or not password_is_valid or not user.is_active:
             raise InvalidCredentialsError
+
+        return user
+
+    def get_user_from_token(self, token: str) -> User:
+        # decode_access_token ya lanza InvalidTokenError si el token está mal
+        # formado, vencido, firmado con otra clave o sin "exp" / "sub".
+        claims = decode_access_token(token)
+
+        subject = claims.get("sub")
+        if not isinstance(subject, str):
+            raise InvalidTokenError
+
+        try:
+            user_id = uuid.UUID(subject)
+        except ValueError as exc:
+            raise InvalidTokenError from exc
+
+        user = self.repository.get_by_id(user_id)
+        if user is None or not user.is_active:
+            raise InvalidTokenError
 
         return user

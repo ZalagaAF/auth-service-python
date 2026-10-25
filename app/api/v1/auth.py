@@ -2,9 +2,10 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from app.core.dependencies import get_auth_service
+from app.core.dependencies import get_auth_service, get_current_user
 from app.core.exceptions import InvalidCredentialsError, UserAlreadyExistsError
 from app.core.security import create_access_token
+from app.models import User
 from app.schemas.auth import LoginRequest, TokenResponse
 from app.schemas.user import UserCreate, UserRead
 from app.services.auth_service import AuthService
@@ -51,3 +52,10 @@ def login(
     token = create_access_token(subject=str(user.id))
 
     return TokenResponse(access_token=token)
+
+
+@router.get("/me", response_model=UserRead)
+def read_current_user(
+    current_user: Annotated[User, Depends(get_current_user)],
+):
+    return current_user

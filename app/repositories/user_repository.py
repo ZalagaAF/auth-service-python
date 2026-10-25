@@ -1,3 +1,4 @@
+import uuid
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -35,4 +36,8 @@ class UserRepository:
 
     def get_by_email(self, email: str) -> User | None:
         consulta = select(User).where(User.email == email)
+        return self.session.scalar(consulta)
+
+    def get_by_id(self, user_id: uuid.UUID) -> User | None:
+        consulta = select(User).where(User.id == user_id)
         return self.session.scalar(consulta)

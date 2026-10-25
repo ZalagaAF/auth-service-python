@@ -1,5 +1,6 @@
 from typing import Annotated
 
+from collections.abc import Callable
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
@@ -40,3 +41,25 @@ def get_current_user(
         return service.get_user_from_token(credentials.credentials)
     except InvalidTokenError:
         raise _unauthorized() from None
+
+def require_role(*role_names: str) -> Callable[..., User]:
+    if not role_names or any(not nombre.strip() for nombre in role_names):
+        raise ValueError(
+            "require_role necesita al menos un nombre de rol y ninguno puede estar vacío."
+        )
+
+    required_roles = frozenset(role_names)
+
+    def check_role(
+        current_user: Annotated[User, Depends(get_current_user)],
+    ) -> User:
+        user_roles = {role.name for role in current_user.roles}
+        if user_roles.isdisjoint(required_roles):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="No tiene permisos para realizar esta acción.",
+            )
+        return current_user
+
+    return check_role
+    

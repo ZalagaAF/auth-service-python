@@ -1,6 +1,6 @@
+from collections.abc import Callable
 from typing import Annotated
 
-from collections.abc import Callable
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.core.exceptions import InvalidTokenError
 from app.db.session import get_db
 from app.models import User
+from app.repositories.refresh_token_repository import RefreshTokenRepository
 from app.repositories.role_repository import RoleRepository
 from app.repositories.user_repository import UserRepository
 from app.services.auth_service import AuthService
@@ -17,7 +18,11 @@ bearer_scheme = HTTPBearer(auto_error=False)
 
 
 def get_auth_service(db: Session = Depends(get_db)) -> AuthService:
-    return AuthService(UserRepository(db), RoleRepository(db))
+    return AuthService(
+        UserRepository(db),
+        RoleRepository(db),
+        RefreshTokenRepository(db),
+    )
 
 
 def _unauthorized() -> HTTPException:
@@ -42,6 +47,7 @@ def get_current_user(
     except InvalidTokenError:
         raise _unauthorized() from None
 
+
 def require_role(*role_names: str) -> Callable[..., User]:
     if not role_names or any(not nombre.strip() for nombre in role_names):
         raise ValueError(
@@ -62,4 +68,3 @@ def require_role(*role_names: str) -> Callable[..., User]:
         return current_user
 
     return check_role
-    

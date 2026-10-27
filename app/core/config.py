@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     jwt_secret_key: str = Field(min_length=32)
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = Field(default=15, gt=0)
+    refresh_token_expire_days: int = 7
 
     @property
     def database_url(self) -> URL:

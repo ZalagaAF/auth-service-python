@@ -3,7 +3,12 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.core.dependencies import get_auth_service, get_current_user
-from app.core.exceptions import InvalidCredentialsError, UserAlreadyExistsError
+from app.core.exceptions import (
+    InvalidCredentialsError,
+    InvalidRefreshTokenError,
+    UserAlreadyExistsError,
+)
+from app.schemas.auth import LoginRequest, RefreshRequest, TokenResponse
 from app.core.security import create_access_token
 from app.models import User
 from app.schemas.auth import LoginRequest, TokenResponse
@@ -49,10 +54,29 @@ def login(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    token = create_access_token(subject=str(user.id))
+    access_token = create_access_token(subject=str(user.id))
+    refresh_token = service.issue_refresh_token(user)
 
-    return TokenResponse(access_token=token)
+    return TokenResponse(access_token=access_token, refresh_token=refresh_token)
 
+
+@router.post("/refresh", response_model=TokenResponse)
+def refresh(
+    body: RefreshRequest,
+    service: Annotated[AuthService, Depends(get_auth_service)],
+):
+    try:
+        user, new_refresh_token = service.refresh(body.refresh_token)
+    except InvalidRefreshTokenError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Refresh token inválido.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    access_token = create_access_token(subject=str(user.id))
+
+    return TokenResponse(access_token=access_token, refresh_token=new_refresh_token)
 
 @router.get("/me", response_model=UserRead)
 def read_current_user(

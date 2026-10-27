@@ -14,3 +14,10 @@ class DefaultRoleNotFoundError(Exception):
     no un error del cliente: por eso no hereda de las excepciones que se
     traducen a respuestas 4xx.
     """
+
+class InvalidRefreshTokenError(Exception):
+    """El refresh token es desconocido, venció, fue reutilizado o su usuario está inactivo.
+
+    Se traduce a un 401 uniforme. No hereda de las demás excepciones de dominio
+    para que ningún handler existente la capture por herencia.
+    """

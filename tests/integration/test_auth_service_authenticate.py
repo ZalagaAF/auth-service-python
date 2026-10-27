@@ -3,6 +3,7 @@ import pytest
 from app.core.exceptions import InvalidCredentialsError
 from app.repositories.role_repository import RoleRepository
 from app.repositories.user_repository import UserRepository
+from app.repositories.refresh_token_repository import RefreshTokenRepository
 from app.services import auth_service as auth_service_module
 from app.services.auth_service import AuthService
 
@@ -14,7 +15,11 @@ pytestmark = pytest.mark.usefixtures("base_roles")
 
 @pytest.fixture
 def auth_service(db_session):
-    return AuthService(UserRepository(db_session), RoleRepository(db_session))
+    return AuthService(
+        UserRepository(db_session),
+        RoleRepository(db_session),
+        RefreshTokenRepository(db_session),
+    )
 
 @pytest.fixture
 def usuario_registrado(auth_service):

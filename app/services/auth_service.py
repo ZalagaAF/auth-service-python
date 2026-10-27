@@ -1,16 +1,26 @@
 import uuid
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.exc import IntegrityError
 
+from app.core.config import get_settings
 from app.core.exceptions import (
     DefaultRoleNotFoundError,
     InvalidCredentialsError,
+    InvalidRefreshTokenError,
     InvalidTokenError,
     UserAlreadyExistsError,
 )
 from app.core.roles import ROLE_USER
-from app.core.security import decode_access_token, hash_password, verify_password
+from app.core.security import (
+    decode_access_token,
+    generate_refresh_token,
+    hash_password,
+    hash_refresh_token,
+    verify_password,
+)
 from app.models import User
+from app.repositories.refresh_token_repository import RefreshTokenRepository
 from app.repositories.role_repository import RoleRepository
 from app.repositories.user_repository import UserRepository
 
@@ -24,9 +34,11 @@ class AuthService:
         self,
         repository: UserRepository,
         role_repository: RoleRepository,
+        refresh_token_repository: RefreshTokenRepository,
     ) -> None:
         self.repository = repository
         self.role_repository = role_repository
+        self.refresh_token_repository = refresh_token_repository
 
     def register(self, username: str, email: str, password: str) -> User:
         # Primero el rol: si no existe, falla antes de escribir nada y antes
@@ -79,3 +91,63 @@ class AuthService:
             raise InvalidTokenError
 
         return user
+
+    def issue_refresh_token(self, user: User) -> str:
+        """Crea un refresh token para el usuario y devuelve el token en claro.
+
+        En la base se guarda solo el hash: el token en claro se entrega una vez.
+        """
+        raw_token = generate_refresh_token()
+        self.refresh_token_repository.create(
+            user_id=user.id,
+            token_hash=hash_refresh_token(raw_token),
+            expires_at=self._refresh_token_expiry(),
+        )
+        return raw_token
+
+    def refresh(self, refresh_token: str) -> tuple[User, str]:
+        """Rota un refresh token: revoca el usado y emite uno nuevo.
+
+        Devuelve el usuario y el refresh token nuevo en claro.
+        """
+        token = self.refresh_token_repository.get_by_hash(
+            hash_refresh_token(refresh_token)
+        )
+        if token is None:
+            raise InvalidRefreshTokenError
+
+        user_id = token.user_id
+
+        if token.revoked_at is not None:
+            # Reutilización: alguien está repitiendo un token ya usado. Se cierran
+            # todas las sesiones del usuario. El repositorio hace commit antes de
+            # que se lance la excepción, así el rollback del request no la deshace.
+            self.refresh_token_repository.revoke_all_for_user(user_id)
+            raise InvalidRefreshTokenError
+
+        if token.expires_at <= datetime.now(timezone.utc):
+            # Vencer es normal: se rechaza sin revocar las demás sesiones.
+            raise InvalidRefreshTokenError
+
+        user = self.repository.get_by_id(user_id)
+        if user is None or not user.is_active:
+            raise InvalidRefreshTokenError
+
+        new_raw_token = generate_refresh_token()
+        rotated = self.refresh_token_repository.rotate(
+            token,
+            hash_refresh_token(new_raw_token),
+            self._refresh_token_expiry(),
+        )
+        if rotated is None:
+            # Otro request usó el mismo token en el mismo instante: se trata
+            # como reutilización.
+            self.refresh_token_repository.revoke_all_for_user(user_id)
+            raise InvalidRefreshTokenError
+
+        return user, new_raw_token
+
+    @staticmethod
+    def _refresh_token_expiry() -> datetime:
+        days = get_settings().refresh_token_expire_days
+        return datetime.now(timezone.utc) + timedelta(days=days)

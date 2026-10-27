@@ -4,6 +4,7 @@ from app.core.exceptions import UserAlreadyExistsError
 from app.core.security import verify_password
 from app.repositories.role_repository import RoleRepository
 from app.repositories.user_repository import UserRepository
+from app.repositories.refresh_token_repository import RefreshTokenRepository
 from app.services.auth_service import AuthService
 
 PASSWORD = "Clave-segura-123"
@@ -13,7 +14,11 @@ pytestmark = pytest.mark.usefixtures("base_roles")
 
 @pytest.fixture
 def auth_service(db_session):
-    return AuthService(UserRepository(db_session), RoleRepository(db_session))
+    return AuthService(
+        UserRepository(db_session),
+        RoleRepository(db_session),
+        RefreshTokenRepository(db_session),
+    )
 
 def test_register_devuelve_el_usuario_creado(auth_service):
     user = auth_service.register(

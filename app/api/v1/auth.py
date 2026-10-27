@@ -78,6 +78,13 @@ def refresh(
 
     return TokenResponse(access_token=access_token, refresh_token=new_refresh_token)
 
+@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+def logout(
+    body: RefreshRequest,
+    service: Annotated[AuthService, Depends(get_auth_service)],
+) -> None:
+    service.logout(body.refresh_token)
+
 @router.get("/me", response_model=UserRead)
 def read_current_user(
     current_user: Annotated[User, Depends(get_current_user)],

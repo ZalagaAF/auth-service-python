@@ -147,6 +147,16 @@ class AuthService:
 
         return user, new_raw_token
 
+    def logout(self, refresh_token: str) -> None:
+        """Revoca el refresh token indicado.
+
+        Es idempotente y no informa si el token existía o no: el resultado se
+        ignora a propósito para que la respuesta sea siempre la misma.
+        """
+        self.refresh_token_repository.revoke_by_hash(
+            hash_refresh_token(refresh_token)
+        )
+
     @staticmethod
     def _refresh_token_expiry() -> datetime:
         days = get_settings().refresh_token_expire_days

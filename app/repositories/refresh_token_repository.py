@@ -85,3 +85,17 @@ class RefreshTokenRepository:
         cantidad = resultado.rowcount
         self.session.commit()
         return cantidad
+    
+    def revoke_by_hash(self, token_hash: str) -> bool:
+        ahora = datetime.now(timezone.utc)
+        resultado = self.session.execute(
+            update(RefreshToken)
+            .where(
+                RefreshToken.token_hash == token_hash,
+                RefreshToken.revoked_at.is_(None)
+            ).values(revoked_at=ahora)
+ 
+        )
+        fue_revocado = resultado.rowcount
+        self.session.commit()
+        return fue_revocado == 1

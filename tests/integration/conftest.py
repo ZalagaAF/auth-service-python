@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 import app.models  # noqa: F401  (registra los modelos en Base.metadata)
 from app.core.config import get_settings
 from app.core.roles import BASE_ROLE_NAMES
+from app.core.rate_limit import limiter
 from app.db.base import Base
 from app.main import app as fastapi_app
 from app.models.roles import Role
@@ -68,3 +69,10 @@ def base_roles(db_session):
     db_session.add_all(roles.values())
     db_session.flush()
     return roles
+
+@pytest.fixture(autouse=True)
+def reiniciar_el_rate_limiter():
+    """Cada test arranca con los contadores del rate limiter en cero."""
+    limiter.reset()
+    yield
+    limiter.reset()

@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from app.core.dependencies import get_auth_service, get_current_user
 from app.core.exceptions import (
@@ -8,10 +8,10 @@ from app.core.exceptions import (
     InvalidRefreshTokenError,
     UserAlreadyExistsError,
 )
-from app.schemas.auth import LoginRequest, RefreshRequest, TokenResponse
+from app.core.rate_limit import LOGIN_RATE_LIMIT, limiter
 from app.core.security import create_access_token
 from app.models import User
-from app.schemas.auth import LoginRequest, TokenResponse
+from app.schemas.auth import LoginRequest, RefreshRequest, TokenResponse
 from app.schemas.user import UserCreate, UserRead
 from app.services.auth_service import AuthService
 
@@ -41,12 +41,16 @@ def register(
 
 
 @router.post("/login", response_model=TokenResponse)
+@limiter.limit(LOGIN_RATE_LIMIT)
 def login(
+    request: Request,
     credentials: LoginRequest,
     service: Annotated[AuthService, Depends(get_auth_service)],
 ):
     try:
-        user = service.authenticate(email=credentials.email, password=credentials.password)
+        user = service.authenticate(
+            email=credentials.email, password=credentials.password
+        )
     except InvalidCredentialsError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -78,12 +82,14 @@ def refresh(
 
     return TokenResponse(access_token=access_token, refresh_token=new_refresh_token)
 
+
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
 def logout(
     body: RefreshRequest,
     service: Annotated[AuthService, Depends(get_auth_service)],
 ) -> None:
     service.logout(body.refresh_token)
+
 
 @router.get("/me", response_model=UserRead)
 def read_current_user(

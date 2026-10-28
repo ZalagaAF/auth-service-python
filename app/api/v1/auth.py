@@ -2,6 +2,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 
+from app.core.audit_log import log_login_failed, log_login_succeeded
 from app.core.dependencies import get_auth_service, get_current_user
 from app.core.exceptions import (
     InvalidCredentialsError,
@@ -52,6 +53,7 @@ def login(
             email=credentials.email, password=credentials.password
         )
     except InvalidCredentialsError:
+        log_login_failed(request, credentials.email)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Credenciales inválidas.",
@@ -60,6 +62,7 @@ def login(
 
     access_token = create_access_token(subject=str(user.id))
     refresh_token = service.issue_refresh_token(user)
+    log_login_succeeded(request, user.id, credentials.email)
 
     return TokenResponse(access_token=access_token, refresh_token=refresh_token)
 

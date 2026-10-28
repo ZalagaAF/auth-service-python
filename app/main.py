@@ -6,6 +6,9 @@ from slowapi.errors import RateLimitExceeded
 
 from app.core.rate_limit import limiter, rate_limit_exceeded_handler
 
+from app.core.logging_config import configure_logging
+
+configure_logging()
 app = FastAPI()
 app.include_router(auth_router, prefix="/api/v1")
 app.state.limiter = limiter

@@ -13,7 +13,7 @@ pytestmark = pytest.mark.usefixtures("base_roles")
 
 REGISTER_URL = "/api/v1/auth/register"
 LOGIN_URL = "/api/v1/auth/login"
-ME_URL = "/api/v1/auth/me"
+ME_URL = "/api/v1/users/me"
 EMAIL = "ana@example.com"
 PASSWORD = "Clave-segura-123"
 CLAVE_AJENA = "una-clave-que-no-es-la-del-servidor-0123456789"

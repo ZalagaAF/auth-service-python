@@ -18,7 +18,7 @@ pytestmark = pytest.mark.usefixtures("base_roles")
 REGISTER_URL = "/api/v1/auth/register"
 LOGIN_URL = "/api/v1/auth/login"
 REFRESH_URL = "/api/v1/auth/refresh"
-ME_URL = "/api/v1/auth/me"
+ME_URL = "/api/v1/users/me"
 EMAIL = "ana@example.com"
 CREDENCIALES = {"email": EMAIL, "password": "Clave-segura-123"}
 

@@ -1,7 +1,8 @@
 import uuid
 from datetime import datetime
+from typing import Any
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 
 class UserCreate(BaseModel):
@@ -18,3 +19,13 @@ class UserRead(BaseModel):
     email: str
     is_active: bool
     created_at: datetime
+
+
+class UserProfile(UserRead):
+    roles: list[str]
+
+    @field_validator("roles", mode="before")
+    @classmethod
+    def roles_a_nombres(cls, roles: list[Any]) -> list[str]:
+        nombres = [rol if isinstance(rol, str) else rol.name for rol in roles]
+        return sorted(nombres)

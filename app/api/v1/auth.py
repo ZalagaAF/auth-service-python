@@ -3,7 +3,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from app.core.audit_log import log_login_failed, log_login_succeeded
-from app.core.dependencies import get_auth_service, get_current_user
+from app.core.dependencies import get_auth_service
 from app.core.exceptions import (
     InvalidCredentialsError,
     InvalidRefreshTokenError,
@@ -11,7 +11,6 @@ from app.core.exceptions import (
 )
 from app.core.rate_limit import LOGIN_RATE_LIMIT, limiter
 from app.core.security import create_access_token
-from app.models import User
 from app.schemas.auth import LoginRequest, RefreshRequest, TokenResponse
 from app.schemas.user import UserCreate, UserRead
 from app.services.auth_service import AuthService
@@ -92,10 +91,3 @@ def logout(
     service: Annotated[AuthService, Depends(get_auth_service)],
 ) -> None:
     service.logout(body.refresh_token)
-
-
-@router.get("/me", response_model=UserRead)
-def read_current_user(
-    current_user: Annotated[User, Depends(get_current_user)],
-):
-    return current_user

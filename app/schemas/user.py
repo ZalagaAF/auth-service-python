@@ -29,3 +29,9 @@ class UserProfile(UserRead):
     def roles_a_nombres(cls, roles: list[Any]) -> list[str]:
         nombres = [rol if isinstance(rol, str) else rol.name for rol in roles]
         return sorted(nombres)
+
+class UserPage(BaseModel):
+    items: list[UserProfile]
+    total: int
+    limit: int
+    offset: int

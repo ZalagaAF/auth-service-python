@@ -21,3 +21,9 @@ class InvalidRefreshTokenError(Exception):
     Se traduce a un 401 uniforme. No hereda de las demás excepciones de dominio
     para que ningún handler existente la capture por herencia.
     """
+
+class UserNotFoundError(Exception):
+    """No existe un usuario registrado con ese email."""
+
+class RoleNotFoundError(Exception):
+    """El rol pedido no existe en la base de datos (¿faltan las migraciones?)."""

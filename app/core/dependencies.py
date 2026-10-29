@@ -68,3 +68,6 @@ def require_role(*role_names: str) -> Callable[..., User]:
         return current_user
 
     return check_role
+
+def get_user_repository(db: Session = Depends(get_db)) -> UserRepository:
+    return UserRepository(db)

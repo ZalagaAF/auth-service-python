@@ -1,8 +1,8 @@
 import uuid
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
-
+from sqlalchemy import func, select
+from sqlalchemy.orm import Session, selectinload
 from app.models import Role, User
 from app.repositories.role_repository import RoleRepository
 
@@ -41,3 +41,17 @@ class UserRepository:
     def get_by_id(self, user_id: uuid.UUID) -> User | None:
         consulta = select(User).where(User.id == user_id)
         return self.session.scalar(consulta)
+
+    def list_paginated(self, limit: int, offset: int) -> list[User]:
+        consulta = (
+            select(User)
+            .options(selectinload(User.roles))
+            .order_by(User.username)
+            .limit(limit)
+            .offset(offset)
+        )
+        return list(self.session.scalars(consulta).all())
+
+    def count(self) -> int:
+        consulta = select(func.count(User.id))
+        return self.session.scalar(consulta) or 0

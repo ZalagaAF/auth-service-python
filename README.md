@@ -1,51 +1,54 @@
 # auth-service-python
 
-Servicio de autenticación y autorización (JWT + RBAC) escrito en Python con FastAPI y
-PostgreSQL, como proyecto backend. Este proyecto fue hecho con fines de aprendizaje y
-para profundizar en técnicas de diseño y seguridad: TDD, patrones de diseño, y las buenas
+Servicio de autenticación y autorización (JWT + RBAC) escrito en Python
+con FastAPI y PostgreSQL, como proyecto backend.
+Este proyecto fue hecho con fines de aprendizaje y para profundizar en
+técnicas de diseño y seguridad: TDD, patrones de diseño, y las buenas
 prácticas de OWASP y de los RFC de OAuth 2.0.
 
 ## Qué hace
 
--Registro y login de usuarios. Las contraseñas se guardan hasheadas con Argon2id.
-
--Sesiones con un access token JWT de vida corta (15 minutos) y un refresh token
-opaco (7 días) que rota en cada uso. Si alguien reutiliza un refresh token ya usado, se
-cierran todas las sesiones del usuario.
-
--Logout que revoca el refresh token de esa sesión.
-
--RBAC con dos roles, admin y user . Los endpoints se protegen con una dependency,
-require_role(...) . Quien se registra recibe user .
-
-
--Rate limiting en /login (5 intentos por minuto por IP) y log estructurado en JSON de
-cada intento de login, éxito o fallo.
-
--Un comando para crear al primer admin. No hay ningún endpoint para volverse
-admin, a propósito.
+- Registro y login de usuarios. Las contraseñas se guardan hasheadas con
+  Argon2id.
+- Sesiones con un **access token JWT** de vida corta (15 minutos) y un
+  **refresh token opaco** (7 días) que rota en cada uso. Si alguien
+  reutiliza un refresh token ya usado, se cierran todas las sesiones del
+  usuario.
+- Logout que revoca el refresh token de esa sesión.
+- **RBAC** con dos roles, `admin` y `user`. Los endpoints se protegen con
+  una dependency, `require_role(...)`. Quien se registra recibe `user`.
+- Rate limiting en `/login` (5 intentos por minuto por IP) y log
+  estructurado en JSON de cada intento de login, éxito o fallo.
+- Un comando para crear al primer admin. No hay ningún endpoint para
+  volverse admin, a propósito.
+- Corre completo en Docker (`docker compose up`) y tiene integración
+  continua que verifica tests, cobertura y migraciones.
 
 ## Requisitos
 
--Python 3.12
--Docker y Docker Compose (para PostgreSQL 16)
+- Docker y Docker Compose
+- Python 3.12, solo si querés correr la aplicación fuera de Docker, los
+  tests o la prueba de humo
 
 ## Uso rápido
 
 ```bash
 git clone https://github.com/ZalagaAF/auth-service-python.git
 cd auth-service-python
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env # Editá .env: poné tu contraseña de PostgreSQL y generá una JWT_SECRET_KEY
-docker compose up -d# PostgreSQL en 127.0.0.1:5433
-alembic upgrade head# crea las tablas y siembra los roles admin y u
-uvicorn app.main:app --reload
+cp .env.example .env
+# Editá .env: poné tu contraseña de PostgreSQL y generá una JWT_SECRET_KEY
+docker compose up -d --build
+python3 scripts/smoke_check.py     # opcional: comprueba que todo responde
 ```
 
-Con el servidor corriendo, abrí http://127.0.0.1:8000/docs para probar la API desde el
-navegador (el botón Authorize acepta el access_token ), o directo con curl:
+El compose levanta tres servicios: `db` (PostgreSQL 16), `migrate` (aplica
+las migraciones y termina) y `app` (la API, en `http://127.0.0.1:8000`).
+Para frenarlo todo sin perder datos, `docker compose down`.
+
+Con la aplicación corriendo, abrí `http://127.0.0.1:8000/docs` para
+probar la API desde el navegador (el botón **Authorize** acepta el
+`access_token`), o directo con curl:
+
 ```bash
 # 1. Registrarse
 curl -X POST http://127.0.0.1:8000/api/v1/auth/register \
@@ -70,6 +73,20 @@ curl -X POST http://127.0.0.1:8000/api/v1/auth/refresh \
 curl -X POST http://127.0.0.1:8000/api/v1/auth/logout \
   -H "Content-Type: application/json" \
   -d '{"refresh_token":"<REFRESH_TOKEN>"}'
+```
+
+### Crear al primer admin
+
+Primero registrá al usuario por la API y después:
+
+```bash
+docker compose exec app python -m app.scripts.create_admin ana@example.com
+```
+
+El comando agrega el rol `admin` y conserva el rol `user`. Es
+idempotente: correrlo dos veces no duplica nada. Como los roles se leen de
+la base en cada request, el usuario puede usar los endpoints de admin con
+el token que ya tenía, sin volver a iniciar sesión.
 ```
 ### Variables de entorno
 
@@ -149,18 +166,35 @@ tests/{unit,integration}/
 
 ## Tests
 
+Necesitan PostgreSQL levantado. Con el proyecto clonado, el entorno
+virtual activo y las dependencias instaladas:
+
 ```bash
+docker compose up -d db
+docker compose exec db sh -c 'createdb -U "$POSTGRES_USER" "${POSTGRES_DB}_test"'   # una sola vez
 pytest
 ```
-Necesita PostgreSQL levantado (`docker compose up -d`). Los tests usan una
-base separada, `<POSTGRES_DB>_test`, y el fixture se niega a correr contra
-cualquier base cuyo nombre no termine en `_test`.
 
-El proyecto tiene 299 tests: unitarios (hash, JWT, configuración, esquemas,
-formateador de logs) e integración (repositorios, endpoints, migración de
-modelos, rate limiting, y recorridos completos de punta a punta como
-registro, login, acceso protegido, refresh y logout). Se ejecutan en unos
-pocos segundos.
+Los tests usan una base separada, `<POSTGRES_DB>_test`, y el fixture se
+niega a correr contra cualquier base cuyo nombre no termine en `_test`.
+
+Para medir la cobertura (con ramas) y ver las líneas que faltan:
+
+```bash
+pytest --cov --cov-report=term-missing
+```
+
+El proyecto tiene más de 300 tests, con una cobertura superior al 95 %:
+unitarios (hash, JWT, configuración, esquemas, formateador de logs) e
+integración (repositorios, endpoints, rate limiting, y recorridos completos
+de punta a punta como registro, login, acceso protegido, refresh y logout).
+Se ejecutan en unos pocos segundos.
+
+La prueba de humo recorre la API real, por ejemplo la que corre en Docker:
+
+```bash
+python3 scripts/smoke_check.py
+```
 
 ## Posibles mejoras futuras (no implementadas)
 

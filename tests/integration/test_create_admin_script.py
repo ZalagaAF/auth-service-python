@@ -96,3 +96,16 @@ def test_run_con_un_usuario_inexistente_devuelve_1_y_explica_el_error(
 
     assert codigo == 1
     assert capsys.readouterr().err != ""
+
+def test_run_sin_el_rol_admin_sembrado_devuelve_1_y_sugiere_las_migraciones(
+    db_session, capsys
+):
+    # Sin base_roles: la tabla roles está vacía
+    UserRepository(db_session).create(
+        username="ana", email=EMAIL, hashed_password="hash-de-prueba"
+    )
+
+    codigo = run(EMAIL, db_session)
+
+    assert codigo == 1
+    assert "alembic upgrade head" in capsys.readouterr().err

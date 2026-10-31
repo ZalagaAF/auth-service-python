@@ -1,5 +1,6 @@
 import json
 import logging
+import sys
 import uuid
 from datetime import datetime, timedelta, timezone
 
@@ -106,3 +107,22 @@ def test_configure_logging_deja_nivel_info_y_la_propagacion_activa(audit_logger)
 
     assert audit_logger.level == logging.INFO
     assert audit_logger.propagate is True
+
+def test_incluye_la_traza_de_la_excepcion_en_una_sola_linea():
+    try:
+        raise ValueError("falló algo")
+    except ValueError:
+        registro = logging.LogRecord(
+            name=AUDIT_LOGGER_NAME,
+            level=logging.ERROR,
+            pathname=__file__,
+            lineno=1,
+            msg="Error inesperado",
+            args=(),
+            exc_info=sys.exc_info(),
+        )
+
+    salida = JsonFormatter().format(registro)
+
+    assert "\n" not in salida
+    assert "ValueError: falló algo" in json.loads(salida)["exception"]

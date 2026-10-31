@@ -8,14 +8,20 @@ prácticas de OWASP y de los RFC de OAuth 2.0.
 ## Qué hace
 
 -Registro y login de usuarios. Las contraseñas se guardan hasheadas con Argon2id.
+
 -Sesiones con un access token JWT de vida corta (15 minutos) y un refresh token
 opaco (7 días) que rota en cada uso. Si alguien reutiliza un refresh token ya usado, se
 cierran todas las sesiones del usuario.
+
 -Logout que revoca el refresh token de esa sesión.
+
 -RBAC con dos roles, admin y user . Los endpoints se protegen con una dependency,
 require_role(...) . Quien se registra recibe user .
+
+
 -Rate limiting en /login (5 intentos por minuto por IP) y log estructurado en JSON de
 cada intento de login, éxito o fallo.
+
 -Un comando para crear al primer admin. No hay ningún endpoint para volverse
 admin, a propósito.
 

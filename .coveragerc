@@ -1,0 +1,10 @@
+[run]
+source = app
+branch = True
+
+[report]
+show_missing = True
+fail_under = 95
+exclude_also =
+    if TYPE_CHECKING:
+    if __name__ == .__main__.:

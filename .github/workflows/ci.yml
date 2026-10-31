@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: auth_user
+          POSTGRES_PASSWORD: ci-password
+          POSTGRES_DB: auth_service
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U auth_user -d auth_service"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    env:
+      # Valores descartables: solo existen en este entorno efímero de CI.
+      POSTGRES_USER: auth_user
+      POSTGRES_PASSWORD: ci-password
+      POSTGRES_DB: auth_service
+      POSTGRES_HOST: 127.0.0.1
+      POSTGRES_PORT: "5432"
+      JWT_SECRET_KEY: ci-only-secret-key-0123456789-abcdefghij
+      # Variables que lee el cliente psql en los pasos de abajo
+      PGHOST: 127.0.0.1
+      PGUSER: auth_user
+      PGPASSWORD: ci-password
+      PGDATABASE: auth_service
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt
+
+      - name: Crear la base de datos de tests
+        run: psql -c 'CREATE DATABASE auth_service_test'
+
+      - name: Verificar migraciones (subir, bajar a cero y volver a subir)
+        run: |
+          alembic upgrade head
+          alembic downgrade base
+          alembic upgrade head
+
+      - name: Verificar que el seed dejó los roles base
+        run: test "$(psql -tAc 'SELECT count(*) FROM roles')" = "2"
+
+      - name: Tests con cobertura
+        run: pytest --cov --cov-report=term-missing --cov-report=xml
+
+      - name: Subir la cobertura a Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage.xml
+          fail_ci_if_error: false
